@@ -1,0 +1,106 @@
+# API 文档
+接口统一域名：https://ntkednawroii.sealosbja.site
+
+## 1. 发送验证码
+- 接口：POST /send-code
+- 描述：发送手机验证码
+- 请求体：
+```json
+{
+    "phone": "13800138000"
+}
+```
+- 响应：
+```json
+{
+    "code": 0,
+    "msg": "success"
+}
+```
+
+## 2. 登录
+- 接口：POST /login
+- 描述：使用手机号和验证码登录
+- 请求体：
+```json
+{
+    "phone": "13800138000",
+    "code": "123456"
+}
+```
+- 响应：
+```json
+{
+    "code": 0,
+    "msg": "success",
+    "data": {
+        "token": "eyJhbGciOiJIUzI1NiIs..."
+    }
+}
+```
+
+## 3. 退出登录
+- 接口：POST /logout
+- 描述：退出登录
+- 请求头：
+```
+Authorization: Bearer <token>
+```
+- 响应：
+```json
+{
+    "code": 0,
+    "msg": "success"
+}
+```
+
+## 4. 单词朗读
+- 接口：GET /read
+- 描述：获取单词的语音文件
+- 请求参数：
+  - word: 要朗读的单词（必填）
+  - gender: 声音性别（female/male），默认female
+- 示例：GET /read?word=hello&gender=female
+- 响应：
+  - 成功：重定向到音频文件（302状态码）
+  - 失败：
+```json
+{
+    "code": 500,
+    "msg": "错误信息"
+}
+```
+- 音频文件访问：
+  - URL：/words/{word}_{gender}.mp3
+  - 示例：/words/hello_female.mp3
+
+## 5. 单词搜索
+- 接口：GET /search
+- 描述：搜索单词的翻译和获取发音
+- 请求参数：
+  - word: 要搜索的单词（必填）
+  - gender: 声音性别（female/male，必填）
+- 示例：GET /search?word=hello&gender=female
+- 响应：
+```json
+{
+    "code": 0,
+    "msg": "success",
+    "data": {
+        "translation": "翻译结果",
+        "audio_url": "音频文件URL"
+    }
+}
+```
+
+## 错误码说明
+- 0: 成功
+- 400: 请求参数错误
+- 401: 未授权（未登录或token无效）
+- 500: 服务器内部错误
+
+## 注意事项
+1. 所有POST请求的Content-Type均为application/json
+2. 登录后的接口需要在请求头中携带token
+3. 音频文件使用mp3格式
+4. 语音性别支持female（女声）和male（男声） 

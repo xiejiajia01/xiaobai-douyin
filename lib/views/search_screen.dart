@@ -5,6 +5,7 @@ import '../services/word_service.dart';
 import 'package:glass_kit/glass_kit.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class SearchScreen extends StatefulWidget {
   const SearchScreen({Key? key}) : super(key: key);
@@ -20,11 +21,25 @@ class _SearchScreenState extends State<SearchScreen> {
   bool _isSearching = false;
   bool _showOnlineSearchPrompt = false;
   bool _isOnlineSearchResult = false;
+  Key _searchWordCardKey = UniqueKey();
 
   @override
   void initState() {
     super.initState();
     _initWordService();
+    _setupSettingsListener();
+  }
+
+  void _setupSettingsListener() {
+    SharedPreferences.getInstance().then((prefs) {
+      prefs.reload();
+    });
+  }
+
+  void _updateSearchWordCard() {
+    setState(() {
+      _searchWordCardKey = UniqueKey();
+    });
   }
 
   Future<void> _initWordService() async {
@@ -316,6 +331,7 @@ class _SearchScreenState extends State<SearchScreen> {
         child: Column(
           children: [
             SearchWordCard(
+              key: _searchWordCardKey,
               word: _searchResult!,
               isOnlineWord: _isOnlineSearchResult,
             ),
@@ -386,12 +402,34 @@ class _SearchWordCardState extends State<SearchWordCard> {
   bool _isPlaying = false;
   bool _isDownloading = false;
   bool _hasDownloaded = false;
+  bool _isWomanVoice = false;
   late WordService _wordService;
 
   @override
   void initState() {
     super.initState();
     _initWordService();
+    _loadVoiceSettings();
+  }
+
+  Future<void> _loadVoiceSettings() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final newVoiceSetting = prefs.getBool('isWomanVoice') ?? false;
+      if (mounted && newVoiceSetting != _isWomanVoice) {
+        setState(() {
+          _isWomanVoice = newVoiceSetting;
+        });
+      }
+    } catch (e) {
+      print('Error loading voice settings: $e');
+    }
+  }
+
+  @override
+  void didUpdateWidget(SearchWordCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    _loadVoiceSettings();
   }
 
   Future<void> _initWordService() async {
@@ -423,15 +461,22 @@ class _SearchWordCardState extends State<SearchWordCard> {
   Future<void> _playAudio() async {
     if (_isPlaying || _isDownloading) return;
 
+    // 每次播放前重新加载设置
+    await _loadVoiceSettings();
+
     setState(() {
       _isPlaying = true;
     });
 
     try {
       final appDir = await getApplicationDocumentsDirectory();
+      final voiceType = _isWomanVoice ? 'woman' : 'man';
       final audioPath = widget.isOnlineWord
-          ? '${appDir.path}/me_words/me_word-man/${widget.word.word}.mp3'
-          : 'assets/words/word-man/${widget.word.word}.mp3';
+          ? '${appDir.path}/me_words/me_word-$voiceType/${widget.word.word}.mp3'
+          : 'assets/words/word-$voiceType/${widget.word.word}.mp3';
+      
+      print('当前音色设置: ${_isWomanVoice ? "女声" : "男声"}');
+      print('尝试播放音频文件: $audioPath');
       
       if (widget.isOnlineWord) {
         // 在线单词使用 setFilePath
@@ -445,16 +490,20 @@ class _SearchWordCardState extends State<SearchWordCard> {
       
       _audioPlayer.playerStateStream.listen((state) {
         if (state.processingState == ProcessingState.completed) {
-          setState(() {
-            _isPlaying = false;
-          });
+          if (mounted) {
+            setState(() {
+              _isPlaying = false;
+            });
+          }
         }
       });
     } catch (e) {
       print('Error playing audio: $e');
-      setState(() {
-        _isPlaying = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isPlaying = false;
+        });
+      }
     }
   }
 

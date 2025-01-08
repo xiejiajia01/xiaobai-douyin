@@ -203,10 +203,15 @@ class WordService {
   // 在线搜索单词
   Future<Word?> searchOnlineWord(String word) async {
     try {
+      // 获取当前音色设置
+      final prefs = await SharedPreferences.getInstance();
+      final isWomanVoice = prefs.getBool('isWomanVoice') ?? false;
+      final gender = isWomanVoice ? 'female' : 'male';
+
       // 获取单词释义和音频URL
       final response = await _dio.get('$_baseUrl/search', queryParameters: {
         'word': word,
-        'gender': 'male', // 默认使用男声
+        'gender': gender, // 根据设置选择音色
       });
 
       if (response.statusCode != 200 || response.data['code'] != 0) {
@@ -249,12 +254,12 @@ class WordService {
       final appDir = await getApplicationDocumentsDirectory();
       
       // 保存男声音频
-      final maleAudioFile = File('${appDir.path}/assets/me_words/me_word-man/$word.mp3');
+      final maleAudioFile = File('${appDir.path}/me_words/me_word-man/$word.mp3');
       await maleAudioFile.create(recursive: true);
       await maleAudioFile.writeAsBytes(maleResponse.data);
 
       // 保存女声音频
-      final femaleAudioFile = File('${appDir.path}/assets/me_words/me_word-woman/$word.mp3');
+      final femaleAudioFile = File('${appDir.path}/me_words/me_word-woman/$word.mp3');
       await femaleAudioFile.create(recursive: true);
       await femaleAudioFile.writeAsBytes(femaleResponse.data);
 
@@ -422,6 +427,64 @@ ${word.meaning}
       return true;
     } catch (e) {
       print('Error downloading audios: $e');
+      return false;
+    }
+  }
+
+  // 删除我的单词
+  Future<bool> deleteMyWord(String word) async {
+    try {
+      final appDir = await getApplicationDocumentsDirectory();
+      final myWordsFile = File('${appDir.path}/me_words/me_words.md');
+      
+      if (!await myWordsFile.exists()) {
+        return false;
+      }
+
+      // 读取所有单词
+      final String content = await myWordsFile.readAsString();
+      final List<String> lines = const LineSplitter().convert(content);
+      final List<String> newLines = [];
+      
+      bool skipNext = false;
+      for (int i = 0; i < lines.length; i++) {
+        final line = lines[i].trim();
+        
+        if (line == word) {
+          skipNext = true;
+          continue;
+        }
+        
+        if (skipNext) {
+          skipNext = false;
+          continue;
+        }
+        
+        if (line.isNotEmpty) {
+          newLines.add(line);
+        } else if (newLines.isNotEmpty) {
+          newLines.add(line);
+        }
+      }
+      
+      // 重写文件内容
+      await myWordsFile.writeAsString(newLines.join('\n'));
+
+      // 删除音频文件
+      final maleAudioFile = File('${appDir.path}/me_words/me_word-man/$word.mp3');
+      final femaleAudioFile = File('${appDir.path}/me_words/me_word-woman/$word.mp3');
+      
+      if (await maleAudioFile.exists()) {
+        await maleAudioFile.delete();
+      }
+      
+      if (await femaleAudioFile.exists()) {
+        await femaleAudioFile.delete();
+      }
+
+      return true;
+    } catch (e) {
+      print('Error deleting word: $e');
       return false;
     }
   }

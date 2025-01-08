@@ -53,11 +53,18 @@ class _MyWordsScreenState extends State<MyWordsScreen> {
   }
 
   void _restoreScrollPosition() {
-    if (MyWordsScreen.lastScrollPosition > 0 && _itemScrollController.isAttached) {
-      _itemScrollController.jumpTo(
-        index: MyWordsScreen.lastScrollPosition,
-        alignment: MyWordsScreen.lastLeadingEdge,
-      );
+    if (!mounted || !_itemScrollController.isAttached) return;
+    
+    try {
+      if (MyWordsScreen.lastScrollPosition > 0) {
+        final targetIndex = MyWordsScreen.lastScrollPosition.clamp(0, _words.length - 1);
+        _itemScrollController.jumpTo(
+          index: targetIndex,
+          alignment: MyWordsScreen.lastLeadingEdge,
+        );
+      }
+    } catch (e) {
+      print('Error restoring scroll position: $e');
     }
   }
 
@@ -78,27 +85,30 @@ class _MyWordsScreenState extends State<MyWordsScreen> {
 
   Future<void> _loadWords() async {
     if (!mounted) return;
-    setState(() {
-      _isLoading = true;
-    });
-
+    
     try {
       final words = await _wordService.loadMyWords();
       if (!mounted) return;
+      
       setState(() {
-        _words = words;
         _isLoading = false;
+        _words = words;
       });
       
       // 恢复滚动位置
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        _restoreScrollPosition();
-      });
+      if (_words.isNotEmpty) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted && _itemScrollController.isAttached) {
+            _restoreScrollPosition();
+          }
+        });
+      }
     } catch (e) {
       print('Error loading words: $e');
       if (!mounted) return;
       setState(() {
         _isLoading = false;
+        _words = [];
       });
     }
   }
@@ -186,9 +196,12 @@ class _MyWordsScreenState extends State<MyWordsScreen> {
                               return RepaintBoundary(
                                 child: Padding(
                                   padding: const EdgeInsets.symmetric(vertical: 4.0),
-                                  child: MyWordCard(
-                                    word: _words[index],
-                                    displayIndex: index + 1,
+                                  child: GestureDetector(
+                                    onLongPress: () => _showDeleteDialog(_words[index]),
+                                    child: MyWordCard(
+                                      word: _words[index],
+                                      displayIndex: index + 1,
+                                    ),
                                   ),
                                 ),
                               );
@@ -197,6 +210,100 @@ class _MyWordsScreenState extends State<MyWordsScreen> {
                         ),
                       ],
                     ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _showDeleteDialog(Word word) async {
+    return showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        backgroundColor: Colors.transparent,
+        child: Container(
+          height: 180,
+          width: 300,
+          decoration: BoxDecoration(
+            color: Colors.black.withOpacity(0.8),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: Colors.white.withOpacity(0.2),
+              width: 1,
+            ),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Text(
+                  '确定要删除这个单词吗？',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                  ),
+                ),
+                const SizedBox(height: 20),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    TextButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      style: TextButton.styleFrom(
+                        backgroundColor: Colors.white.withOpacity(0.1),
+                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                      ),
+                      child: const Text(
+                        '取消',
+                        style: TextStyle(color: Colors.white),
+                      ),
+                    ),
+                    ElevatedButton(
+                      onPressed: () async {
+                        final success = await _wordService.deleteMyWord(word.word);
+                        if (success && mounted) {
+                          Navigator.of(context).pop();
+                          _loadWords(); // 重新加载单词列表
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Center(
+                                child: Text(
+                                  '${word.word} 已删除',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                              ),
+                              backgroundColor: Colors.black87,
+                              behavior: SnackBarBehavior.floating,
+                              duration: const Duration(seconds: 1),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              margin: EdgeInsets.only(
+                                bottom: MediaQuery.of(context).size.height * 0.1,
+                                left: 16,
+                                right: 16,
+                              ),
+                            ),
+                          );
+                        }
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.red.withOpacity(0.8),
+                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                      ),
+                      child: const Text(
+                        '删除',
+                        style: TextStyle(color: Colors.white),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );

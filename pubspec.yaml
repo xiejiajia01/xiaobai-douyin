@@ -37,7 +37,7 @@ dependencies:
   # 状态管理
   provider: ^6.1.1
   # 本地存储
-  shared_preferences: ^2.2.2
+  shared_preferences: ^2.3.5
   # HTTP 请求
   dio: ^5.4.0
   # 音频播放

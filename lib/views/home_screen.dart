@@ -5,6 +5,7 @@ import '../services/word_service.dart';
 import '../widgets/word_card.dart';
 import '../views/search_screen.dart';
 import '../views/my_words_screen.dart';
+import '../views/settings_screen.dart';
 import '../widgets/flip_animation.dart';
 import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
 import 'package:glass_kit/glass_kit.dart';
@@ -176,7 +177,20 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
               IconButton(
                 icon: const Icon(Icons.settings),
                 color: Colors.white,
-                onPressed: () {},
+                onPressed: () async {
+                  final settingsChanged = await Navigator.push<bool>(
+                    context,
+                    MaterialPageRoute(builder: (context) => const SettingsScreen()),
+                  );
+                  
+                  // 只有当设置真正改变时才重新加载
+                  if (settingsChanged == true) {
+                    // 强制重建所有 WordCard
+                    setState(() {
+                      _words = List.from(_words);
+                    });
+                  }
+                },
               ),
             ],
           ),

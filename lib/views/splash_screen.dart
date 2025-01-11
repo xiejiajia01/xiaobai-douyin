@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'login_screen.dart';
+import 'home_screen.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({Key? key}) : super(key: key);
@@ -12,12 +14,27 @@ class _SplashScreenState extends State<SplashScreen> {
   @override
   void initState() {
     super.initState();
-    // 2秒后自动跳转到登录页面
-    Future.delayed(const Duration(seconds: 2), () {
+    _checkLoginStatus();
+  }
+
+  Future<void> _checkLoginStatus() async {
+    await Future.delayed(const Duration(seconds: 2));
+    if (!mounted) return;
+
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('auth_token');
+
+    if (!mounted) return;
+
+    if (token != null) {
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (context) => const HomeScreen()),
+      );
+    } else {
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(builder: (context) => const LoginScreen()),
       );
-    });
+    }
   }
 
   @override

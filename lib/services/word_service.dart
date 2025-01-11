@@ -10,6 +10,8 @@ class WordService {
   final SharedPreferences _prefs;
   static const String _markedWordsKey = 'marked_words';
   static const String _bookmarkedWordsKey = 'bookmarked_words';
+  static const String _reviewModeKey = 'review_mode';
+  static const String _reviewModeBookmarkedWordsKey = 'review_mode_bookmarked_words';
   List<Word> _words = [];
   bool _isInitialized = false;
   final Dio _dio = Dio();
@@ -143,7 +145,9 @@ class WordService {
   }
 
   Future<bool> _getWordBookmarkState(String word) async {
-    final bookmarkedWords = _prefs.getStringList(_bookmarkedWordsKey) ?? [];
+    final isReviewMode = await getReviewMode();
+    final key = isReviewMode ? _reviewModeBookmarkedWordsKey : _bookmarkedWordsKey;
+    final bookmarkedWords = _prefs.getStringList(key) ?? [];
     return bookmarkedWords.contains(word);
   }
 
@@ -158,7 +162,9 @@ class WordService {
   }
 
   Future<void> bookmarkWord(String word, bool isBookmarked) async {
-    final bookmarkedWords = _prefs.getStringList(_bookmarkedWordsKey) ?? [];
+    final isReviewMode = await getReviewMode();
+    final key = isReviewMode ? _reviewModeBookmarkedWordsKey : _bookmarkedWordsKey;
+    final bookmarkedWords = _prefs.getStringList(key) ?? [];
     
     // 清除所有现有书签，确保互斥性
     if (isBookmarked) {
@@ -168,7 +174,7 @@ class WordService {
       bookmarkedWords.remove(word);
     }
     
-    await _prefs.setStringList(_bookmarkedWordsKey, bookmarkedWords);
+    await _prefs.setStringList(key, bookmarkedWords);
   }
 
   Future<void> playAudio(String word) async {
@@ -487,5 +493,46 @@ ${word.meaning}
       print('Error deleting word: $e');
       return false;
     }
+  }
+
+  // 获取复习模式状态
+  Future<bool> getReviewMode() async {
+    return _prefs.getBool(_reviewModeKey) ?? false;
+  }
+
+  // 设置复习模式状态
+  Future<void> setReviewMode(bool enabled) async {
+    await _prefs.setBool(_reviewModeKey, enabled);
+  }
+
+  // 获取标记的单词
+  Future<List<Word>> getMarkedWords() async {
+    final words = await loadWords();  // 使用原有的加载方法
+    final markedWords = _prefs.getStringList(_markedWordsKey) ?? [];
+    final reviewModeBookmarkedWords = _prefs.getStringList(_reviewModeBookmarkedWordsKey) ?? [];
+
+    return words
+        .where((word) => markedWords.contains(word.word))
+        .map((word) {
+          word.isMarked = true;
+          word.isBookmarked = reviewModeBookmarkedWords.contains(word.word);
+          return word;
+        })
+        .toList();
+  }
+
+  // 获取当前模式下的书签单词
+  Future<String?> getCurrentModeBookmarkedWord() async {
+    final isReviewMode = await getReviewMode();
+    final key = isReviewMode ? _reviewModeBookmarkedWordsKey : _bookmarkedWordsKey;
+    final bookmarkedWords = _prefs.getStringList(key) ?? [];
+    return bookmarkedWords.isEmpty ? null : bookmarkedWords.first;
+  }
+
+  // 获取学习进度
+  Future<(int, int)> getLearningProgress() async {
+    final markedWords = _prefs.getStringList(_markedWordsKey) ?? [];
+    final totalWords = 2000;  // 总单词数
+    return (markedWords.length, totalWords);
   }
 } 

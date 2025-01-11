@@ -6,15 +6,18 @@ import 'package:glass_kit/glass_kit.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/word.dart';
+import '../services/theme_service.dart';
 
 class MyWordCard extends StatefulWidget {
   final Word word;
   final int displayIndex;
+  final AppThemeMode themeMode;
 
   const MyWordCard({
     Key? key,
     required this.word,
     required this.displayIndex,
+    required this.themeMode,
   }) : super(key: key);
 
   @override
@@ -60,33 +63,21 @@ class _MyWordCardState extends State<MyWordCard> {
 
   Future<void> _playAudio() async {
     if (_isPlaying) return;
-
-    // 每次播放前重新加载设置
     await _loadVoiceSettings();
-
     setState(() {
       _isPlaying = true;
     });
 
     try {
-      // 检查应用文档目录中是否存在音频文件
       final appDir = await getApplicationDocumentsDirectory();
       final voiceType = _isWomanVoice ? 'woman' : 'man';
       final meWordPath = '${appDir.path}/me_words/me_word-$voiceType/${widget.word.word}.mp3';
       final meWordFile = File(meWordPath);
       
-      print('当前音色设置: ${_isWomanVoice ? "女声" : "男声"}');
-      print('尝试播放本地文件路径: $meWordPath');
-      print('本地文件是否存在: ${await meWordFile.exists()}');
-      
       if (await meWordFile.exists()) {
-        // 如果在应用文档目录中找到音频文件，使用 setFilePath
-        print('使用本地文件播放');
         await _audioPlayer.setFilePath(meWordPath);
       } else {
-        // 如果没有找到，则使用 assets 目录中的音频文件
         final assetPath = 'assets/words/word-$voiceType/${widget.word.word}.mp3';
-        print('使用assets文件播放: $assetPath');
         await _audioPlayer.setAsset(assetPath);
       }
       
@@ -111,8 +102,22 @@ class _MyWordCardState extends State<MyWordCard> {
     }
   }
 
+  Color _getCardColor() {
+    switch (widget.themeMode) {
+      case AppThemeMode.dark:
+        return Colors.transparent;
+      case AppThemeMode.orange:
+        return ThemeColors.orangeCard;
+      case AppThemeMode.green:
+        return ThemeColors.greenCard;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final bool isDarkTheme = widget.themeMode == AppThemeMode.dark;
+    final cardColor = _getCardColor();
+
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: GlassContainer(
@@ -120,8 +125,12 @@ class _MyWordCardState extends State<MyWordCard> {
         width: double.infinity,
         gradient: LinearGradient(
           colors: [
-            Colors.white.withOpacity(0.1),
-            Colors.white.withOpacity(0.05),
+            isDarkTheme 
+                ? cardColor
+                : cardColor,
+            isDarkTheme 
+                ? cardColor
+                : cardColor,
           ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
@@ -129,8 +138,12 @@ class _MyWordCardState extends State<MyWordCard> {
         borderRadius: BorderRadius.circular(15),
         borderGradient: LinearGradient(
           colors: [
-            Colors.white.withOpacity(0.2),
-            Colors.white.withOpacity(0.1),
+            isDarkTheme 
+                ? const Color(0xFFEEE7CE)
+                : cardColor,
+            isDarkTheme 
+                ? const Color(0xFFEEE7CE)
+                : cardColor,
           ],
         ),
         blur: 20,
@@ -143,19 +156,19 @@ class _MyWordCardState extends State<MyWordCard> {
                 children: [
                   Text(
                     '${widget.displayIndex}.',
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
-                      color: Colors.white,
+                      color: isDarkTheme ? Colors.white : ThemeColors.blackText,
                     ),
                   ),
                   const SizedBox(width: 8),
                   Text(
                     widget.word.word,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.bold,
-                      color: Colors.white,
+                      color: isDarkTheme ? Colors.white : ThemeColors.blackText,
                     ),
                   ),
                   const Spacer(),
@@ -164,7 +177,7 @@ class _MyWordCardState extends State<MyWordCard> {
                     constraints: const BoxConstraints(),
                     icon: Icon(
                       _isPlaying ? Icons.volume_up : Icons.volume_up_outlined,
-                      color: Colors.white70,
+                      color: isDarkTheme ? Colors.white70 : ThemeColors.blackText,
                     ),
                     onPressed: _playAudio,
                   ),
@@ -173,9 +186,9 @@ class _MyWordCardState extends State<MyWordCard> {
               const SizedBox(height: 8),
               Text(
                 widget.word.meaning,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 16,
-                  color: Colors.white,
+                  color: isDarkTheme ? Colors.white : ThemeColors.blackText,
                 ),
               ),
             ],

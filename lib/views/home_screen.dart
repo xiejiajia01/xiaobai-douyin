@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/word.dart';
 import '../services/word_service.dart';
+import '../services/theme_service.dart';
 import '../widgets/word_card.dart';
 import '../views/search_screen.dart';
 import '../views/my_words_screen.dart';
@@ -10,14 +12,14 @@ import '../widgets/flip_animation.dart';
 import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
 import 'package:glass_kit/glass_kit.dart';
 
-class HomeScreen extends StatefulWidget {
+class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({Key? key}) : super(key: key);
 
   @override
-  _HomeScreenState createState() => _HomeScreenState();
+  ConsumerState<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMixin {
+class _HomeScreenState extends ConsumerState<HomeScreen> with AutomaticKeepAliveClientMixin {
   late WordService _wordService;
   List<Word> _words = [];
   bool _isLoading = true;
@@ -53,7 +55,6 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
       final firstItem = positions.first;
       _lastScrollPosition = firstItem.index;
       _lastLeadingEdge = firstItem.itemLeadingEdge;
-      print('保存位置: index=$_lastScrollPosition, offset=$_lastLeadingEdge');
     }
   }
 
@@ -83,14 +84,21 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
     });
 
     try {
-      await _wordService.initialize();
-      final words = await _wordService.loadWords();
+      final isReviewMode = await _wordService.getReviewMode();
+      final words = isReviewMode 
+          ? await _wordService.getMarkedWords()
+          : await _wordService.loadWords();
+          
+      final bookmarkedWord = await _wordService.getCurrentModeBookmarkedWord();
+      
       setState(() {
         _words = words;
         _isLoading = false;
+        _bookmarkedIndex = bookmarkedWord == null 
+            ? null 
+            : words.indexWhere((word) => word.word == bookmarkedWord);
       });
       
-      // 恢复滚动位置
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _restoreScrollPosition();
       });
@@ -108,7 +116,7 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
         index: _bookmarkedIndex!,
         duration: const Duration(milliseconds: 500),
         curve: Curves.easeInOut,
-        alignment: 0.3, // 将书签卡片位置调整到屏幕上方30%处
+        alignment: 0.3,
       );
     }
   }
@@ -125,12 +133,39 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
   @override
   Widget build(BuildContext context) {
     super.build(context);
+    final currentTheme = ref.watch(themeNotifierProvider);
+    
+    Color getBackgroundColor() {
+      switch (currentTheme) {
+        case AppThemeMode.dark:
+          return Colors.black;
+        case AppThemeMode.orange:
+          return ThemeColors.orangeBackground;
+        case AppThemeMode.green:
+          return ThemeColors.greenBackground;
+      }
+    }
+
+    Color getCardColor() {
+      switch (currentTheme) {
+        case AppThemeMode.dark:
+          return Colors.white;
+        case AppThemeMode.orange:
+          return ThemeColors.orangeCard;
+        case AppThemeMode.green:
+          return ThemeColors.greenCard;
+      }
+    }
+
+    final backgroundColor = getBackgroundColor();
+    final cardColor = getCardColor();
+    final bool isDarkTheme = currentTheme == AppThemeMode.dark;
 
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: backgroundColor,
       body: FlipAnimation(
         showBackWidget: _showMyWords,
-        frontWidget: _buildMainContent(),
+        frontWidget: _buildMainContent(currentTheme, backgroundColor, cardColor, isDarkTheme),
         backWidget: MyWordsScreen(
           onFlipBack: () {
             setState(() {
@@ -148,47 +183,49 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
     );
   }
 
-  Widget _buildMainContent() {
+  Widget _buildMainContent(AppThemeMode currentTheme, Color backgroundColor, Color cardColor, bool isDarkTheme) {
     return Scaffold(
       backgroundColor: Colors.transparent,
       appBar: PreferredSize(
         preferredSize: Size.fromHeight(kToolbarHeight),
         child: Container(
-          color: Colors.black,  // 确保背景色与页面一致
+          color: backgroundColor,
           child: AppBar(
             backgroundColor: Colors.transparent,
             elevation: 0,
             automaticallyImplyLeading: false,
-            title: const Text(
-              '小白单词',
-              style: TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-              ),
+            title: FutureBuilder<bool>(
+              future: _wordService.getReviewMode(),
+              builder: (context, snapshot) {
+                final isReviewMode = snapshot.data ?? false;
+                return Text(
+                  isReviewMode ? '复习模式' : '小白单词',
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: isDarkTheme ? Colors.white : ThemeColors.blackText,
+                  ),
+                );
+              },
             ),
             centerTitle: false,
             actions: [
               IconButton(
                 icon: const Icon(Icons.bookmark_border),
-                color: Colors.white,
+                color: isDarkTheme ? Colors.white : ThemeColors.blackText,
                 onPressed: _scrollToBookmarked,
               ),
               IconButton(
-                icon: const Icon(Icons.settings),
-                color: Colors.white,
+                icon: const Icon(Icons.menu),
+                color: isDarkTheme ? Colors.white : ThemeColors.blackText,
                 onPressed: () async {
                   final settingsChanged = await Navigator.push<bool>(
                     context,
                     MaterialPageRoute(builder: (context) => const SettingsScreen()),
                   );
                   
-                  // 只有当设置真正改变时才重新加载
                   if (settingsChanged == true) {
-                    // 强制重建所有 WordCard
-                    setState(() {
-                      _words = List.from(_words);
-                    });
+                    _loadWords();  // 重新加载单词列表
                   }
                 },
               ),
@@ -205,7 +242,7 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
         onHorizontalDragEnd: (details) {
           final velocity = details.primaryVelocity ?? 0;
           if (velocity.abs() > 300) {
-            if (velocity < 0) {  // 左滑
+            if (velocity < 0) {
               setState(() {
                 _isFlipping = true;
                 _showMyWords = true;
@@ -214,11 +251,14 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
           }
         },
         child: Container(
-          decoration: const BoxDecoration(
+          decoration: BoxDecoration(
             gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
-              colors: [Colors.black, Colors.black],
+              colors: [
+                backgroundColor,
+                backgroundColor,
+              ],
             ),
           ),
           child: _buildWordList(),
@@ -230,21 +270,32 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
         borderRadius: BorderRadius.circular(28),
         gradient: LinearGradient(
           colors: [
-            Colors.white.withOpacity(0.1),
-            Colors.white.withOpacity(0.05),
+            isDarkTheme 
+                ? Colors.white.withOpacity(0.2)
+                : cardColor.withOpacity(0.2),
+            isDarkTheme 
+                ? Colors.white.withOpacity(0.2)
+                : cardColor.withOpacity(0.2),
           ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderGradient: LinearGradient(
           colors: [
-            Colors.white.withOpacity(0.2),
-            Colors.white.withOpacity(0.1),
+            isDarkTheme 
+                ? Colors.white.withOpacity(0.2)
+                : cardColor.withOpacity(0.2),
+            isDarkTheme 
+                ? Colors.white.withOpacity(0.2)
+                : cardColor.withOpacity(0.2),
           ],
         ),
         blur: 20,
         child: IconButton(
-          icon: const Icon(Icons.search, color: Colors.white),
+          icon: Icon(
+            Icons.search, 
+            color: isDarkTheme ? Colors.white : ThemeColors.blackText
+          ),
           onPressed: _showSearchScreen,
         ),
       ),
@@ -291,6 +342,12 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
                 },
                 onMarkChanged: (isMarked) async {
                   await _wordService.markWord(_words[index].word, isMarked);
+                  final isReviewMode = await _wordService.getReviewMode();
+                  if (isReviewMode && !isMarked) {
+                    setState(() {
+                      _words.removeAt(index);
+                    });
+                  }
                 },
                 onBookmarkChanged: (isBookmarked) async {
                   if (!isBookmarked) {

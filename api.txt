@@ -12,10 +12,7 @@
 ```
 - 响应：
 ```json
-{
-    "code": 0,
-    "msg": "success"
-}
+{"code":0,"data":null,"msg":"success"}
 ```
 
 ## 2. 登录

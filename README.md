@@ -1,16 +1,6 @@
 # xiaobai_words
+这个是一个单词app项目全部由cursor生成，前端基本完全可用，但需要后端接口
 
-A new Flutter project.
+倒入cursor，然后问cursor这个项目实现了什么功能即可
 
-## Getting Started
-
-This project is a starting point for a Flutter application.
-
-A few resources to get you started if this is your first Flutter project:
-
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
-
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+可以抖音号“renshengkd”看20250114的视频

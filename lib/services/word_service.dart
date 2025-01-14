@@ -15,7 +15,7 @@ class WordService {
   List<Word> _words = [];
   bool _isInitialized = false;
   final Dio _dio = Dio();
-  static const String _baseUrl = 'https://ntkednawroii.sealosbja.site';
+  static const String _baseUrl = 'https://test.lazijil.cc';
 
   WordService._(this._prefs);
 
@@ -402,11 +402,11 @@ ${word.meaning}
 
       // 下载男声音频
       final maleResponse = await _dio.get(
-        'http://ntkednawroii.sealosbja.site/search',
+        'http://test.lazijil.cc/search',
         queryParameters: {'word': word, 'gender': 'male'},
       );
       if (maleResponse.data['code'] == 0) {
-        final maleAudioUrl = 'http://ntkednawroii.sealosbja.site${maleResponse.data['data']['audio_url']}';
+        final maleAudioUrl = 'http://test.lazijil.cc${maleResponse.data['data']['audio_url']}';
         final maleAudioResponse = await _dio.get(
           maleAudioUrl,
           options: Options(responseType: ResponseType.bytes),
@@ -417,11 +417,11 @@ ${word.meaning}
 
       // 下载女声音频
       final femaleResponse = await _dio.get(
-        'http://ntkednawroii.sealosbja.site/search',
+        'http://test.lazijil.cc/search',
         queryParameters: {'word': word, 'gender': 'female'},
       );
       if (femaleResponse.data['code'] == 0) {
-        final femaleAudioUrl = 'http://ntkednawroii.sealosbja.site${femaleResponse.data['data']['audio_url']}';
+        final femaleAudioUrl = 'http://test.lazijil.cc${femaleResponse.data['data']['audio_url']}';
         final femaleAudioResponse = await _dio.get(
           femaleAudioUrl,
           options: Options(responseType: ResponseType.bytes),

@@ -57,6 +57,10 @@ dependencies:
   permission_handler: ^11.1.0
   # 路径管理
   path_provider: ^2.1.1
+  # 本地通知
+  flutter_local_notifications: ^16.3.0
+  # 时区处理
+  timezone: ^0.9.2
   # 国际化
   flutter_localizations:
     sdk: flutter
@@ -128,6 +132,9 @@ flutter:
     - assets/words/me_words/me_word-man/
     - assets/words/me_words/me_word-woman/
     - assets/icon/
+    - xieyi.txt
+    - yinsi.txt
+    - ertong.txt
 
 flutter_launcher_icons:
   android: true

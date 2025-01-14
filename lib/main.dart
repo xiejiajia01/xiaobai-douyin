@@ -5,8 +5,15 @@ import 'views/login_screen.dart';
 import 'views/home_screen.dart';
 import 'views/splash_screen.dart';
 import 'services/theme_service.dart';
+import 'services/push_service.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  
+  // 初始化推送服务
+  final pushService = PushService();
+  await pushService.init();
+  
   runApp(
     const ProviderScope(
       child: MyApp(),

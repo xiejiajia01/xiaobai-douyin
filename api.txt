@@ -1,5 +1,5 @@
 # API 文档
-接口统一域名：https://ntkednawroii.sealosbja.site
+接口统一域名：https://test.lazijil.cc 
 
 ## 1. 发送验证码
 - 接口：POST /send-code
@@ -101,3 +101,15 @@ Authorization: Bearer <token>
 2. 登录后的接口需要在请求头中携带token
 3. 音频文件使用mp3格式
 4. 语音性别支持female（女声）和male（男声） 
+
+------
+工具：
+icon：豆包
+颜色搭配：https://aicolors.co/
+rule：https://cursor.directory/
+短信：阿里云短信服务，免费100条
+翻译：阿里云机器翻译，免费
+开源地址：
+音频：https://github.com/wxxxcxx/azure-tts-lexicon-cn/blob/main/lexicon.xml
+api：每日英语https://blog.csdn.net/p_s_p/article/details/134418912
+ai大模型：https://cloud.tencent.com/document/product/1729/105701#1.-.E6.8E.A5.E5.8F.A3.E6.8F.8F.E8.BF.B0

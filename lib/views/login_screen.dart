@@ -1,5 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/gestures.dart';
+import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'home_screen.dart';
 import '../services/api_service.dart';
@@ -16,6 +18,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final _codeController = TextEditingController();
   bool _isLoading = false;
   bool _canSendCode = true;
+  bool _agreedToTerms = false;
   int _countdown = 60;
   Timer? _timer;
   final _apiService = ApiService();
@@ -80,7 +83,97 @@ class _LoginScreenState extends State<LoginScreen> {
     });
   }
 
+  Future<String> _loadAgreement(String filename) async {
+    try {
+      return await rootBundle.loadString('$filename.txt');
+    } catch (e) {
+      print('Error loading agreement: $e');
+      return '加载协议内容失败';
+    }
+  }
+
+  void _showAgreement(String title, String type) async {
+    String content = await _loadAgreement(type);
+    if (!mounted) return;
+    
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(title),
+        content: SingleChildScrollView(
+          child: SelectableText.rich(
+            TextSpan(
+              text: content,
+              style: const TextStyle(fontSize: 14),
+              children: _buildClickableLinks(content),
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('关闭'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  List<TextSpan> _buildClickableLinks(String text) {
+    final List<TextSpan> spans = [];
+    final RegExp exp = RegExp(r'《(.*?)》');
+    int lastIndex = 0;
+
+    for (final Match match in exp.allMatches(text)) {
+      if (match.start > lastIndex) {
+        spans.add(TextSpan(text: text.substring(lastIndex, match.start)));
+      }
+
+      final String linkText = match.group(1)!;
+      spans.add(
+        TextSpan(
+          text: '《$linkText》',
+          style: const TextStyle(
+            color: Colors.blue,
+            decoration: TextDecoration.underline,
+          ),
+          recognizer: TapGestureRecognizer()
+            ..onTap = () {
+              String type = '';
+              switch (linkText) {
+                case '用户协议':
+                  type = 'xieyi';
+                  break;
+                case '隐私政策':
+                  type = 'yinsi';
+                  break;
+                case '儿童隐私政策':
+                  type = 'ertong';
+                  break;
+              }
+              if (type.isNotEmpty) {
+                _showAgreement(linkText, type);
+              }
+            },
+        ),
+      );
+
+      lastIndex = match.end;
+    }
+
+    if (lastIndex < text.length) {
+      spans.add(TextSpan(text: text.substring(lastIndex)));
+    }
+
+    return spans;
+  }
+
   Future<void> _sendVerificationCode() async {
+    if (!_agreedToTerms) {
+      _showSnackBar('请先同意用户协议和隐私政策');
+      return;
+    }
+    
     if (!mounted) return;
     
     final phone = _phoneController.text.trim();
@@ -226,7 +319,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     SizedBox(
                       width: 120,
                       child: ElevatedButton(
-                        onPressed: _canSendCode ? _sendVerificationCode : null,
+                        onPressed: _canSendCode && _agreedToTerms ? _sendVerificationCode : null,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.white,
                           foregroundColor: Colors.black,
@@ -242,6 +335,90 @@ class _LoginScreenState extends State<LoginScreen> {
                           style: const TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    Checkbox(
+                      value: _agreedToTerms,
+                      onChanged: (value) {
+                        setState(() {
+                          _agreedToTerms = value ?? false;
+                        });
+                      },
+                      fillColor: MaterialStateProperty.resolveWith<Color>(
+                        (Set<MaterialState> states) {
+                          if (states.contains(MaterialState.selected)) {
+                            return Colors.white;
+                          }
+                          return Colors.white70;
+                        },
+                      ),
+                    ),
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: () {
+                          setState(() {
+                            _agreedToTerms = !_agreedToTerms;
+                          });
+                        },
+                        child: SelectableText.rich(
+                          TextSpan(
+                            children: [
+                              const TextSpan(
+                                text: '登录即代表您同意',
+                                style: TextStyle(
+                                  color: Colors.white70,
+                                  fontSize: 12,
+                                ),
+                              ),
+                              TextSpan(
+                                text: '《用户协议》',
+                                style: const TextStyle(
+                                  color: Colors.blue,
+                                  fontSize: 12,
+                                ),
+                                recognizer: TapGestureRecognizer()
+                                  ..onTap = () => _showAgreement('用户协议', 'xieyi'),
+                              ),
+                              const TextSpan(
+                                text: '、',
+                                style: TextStyle(
+                                  color: Colors.white70,
+                                  fontSize: 12,
+                                ),
+                              ),
+                              TextSpan(
+                                text: '《隐私政策》',
+                                style: const TextStyle(
+                                  color: Colors.blue,
+                                  fontSize: 12,
+                                ),
+                                recognizer: TapGestureRecognizer()
+                                  ..onTap = () => _showAgreement('隐私政策', 'yinsi'),
+                              ),
+                              const TextSpan(
+                                text: '和',
+                                style: TextStyle(
+                                  color: Colors.white70,
+                                  fontSize: 12,
+                                ),
+                              ),
+                              TextSpan(
+                                text: '《儿童隐私政策》',
+                                style: const TextStyle(
+                                  color: Colors.blue,
+                                  fontSize: 12,
+                                ),
+                                recognizer: TapGestureRecognizer()
+                                  ..onTap = () => _showAgreement('儿童隐私政策', 'ertong'),
+                              ),
+                            ],
                           ),
                         ),
                       ),
